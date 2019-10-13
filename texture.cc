@@ -20,10 +20,10 @@ static const char* kFragmentShader = R"(
     #version 330 core
     in vec2 textureCoord;
     uniform sampler2D tex0;
+    uniform sampler2D tex1;
     out vec4 color;
     void main() {
-        color = texture(tex0, textureCoord);
-        // color = vec4(1., 0., 0., 1.);
+        color = mix(texture(tex0, textureCoord), texture(tex1, textureCoord), 0.2);
     }
 )";
 
@@ -98,25 +98,57 @@ int texture()
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
     glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW);
 
-    int width, height, channels;
-    unsigned char* data = stbi_load("container.jpg", &width, &height, &channels, 0);
-    assert(data && width && height);
-
     uint32_t texture;
-    glGenTextures(1, &texture);
-    glBindTexture(GL_TEXTURE_2D, texture);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
-                 GL_UNSIGNED_BYTE, data);
-    glGenerateMipmap(GL_TEXTURE_2D);
-    stbi_image_free(data);
+    {
+        int width, height, channels;
+        unsigned char* data =
+            stbi_load("container.jpg", &width, &height, &channels, 0);
+        assert(data && width && height);
+
+        glGenTextures(1, &texture);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+                     GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        stbi_image_free(data);
+    }
+
+    uint32_t texture1;
+    {
+        stbi_set_flip_vertically_on_load(true);
+        int width, height, channels;
+        unsigned char* data =
+            stbi_load("awesomeface.png", &width, &height, &channels, 0);
+        assert(data && width && height);
+
+        glGenTextures(1, &texture1);
+        glBindTexture(GL_TEXTURE_2D, texture1);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
+                     GL_UNSIGNED_BYTE, data);
+        glGenerateMipmap(GL_TEXTURE_2D);
+        stbi_image_free(data);
+    }
+    glUseProgram(shader);
+    glUniform1i(glGetUniformLocation(shader, "tex0"), 0);
+    glUniform1i(glGetUniformLocation(shader, "tex1"), 1);
 
     while (!glfwWindowShouldClose(window)) {
         glClearColor(.5, .5, .5, 1);
         glClear(GL_COLOR_BUFFER_BIT);
+
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, texture);
+        glActiveTexture(GL_TEXTURE1);
+        glBindTexture(GL_TEXTURE_2D, texture1);
+
         glUseProgram(shader);
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
         glfwSwapBuffers(window);
