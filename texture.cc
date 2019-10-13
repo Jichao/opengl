@@ -2,8 +2,12 @@
 #include "glad/glad.h"
 #include <GLFW/glfw3.h>
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
+#include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
+#include "spdlog/spdlog.h"
+#include "stb_image.h"
 
 static float alpha = 0.2;
 unsigned int shader;
@@ -12,42 +16,40 @@ static const char* kVertexShader = R"(
     #version 330 core
     layout (location = 0) in vec2 pos;
     layout (location = 1) in vec2 coord;
-    out vec2 textureCoord;
+    out vec2 textCoord;
+    uniform mat4 matrix;
     void main() {
-        gl_Position = vec4(pos, 0., 1.);
-        textureCoord = coord;
+        gl_Position = matrix * vec4(pos, 0., 1.);
+        textCoord = coord;
     }
 )";
 
 static const char* kFragmentShader = R"(
     #version 330 core
-    in vec2 textureCoord;
+    in vec2 textCoord;
     uniform sampler2D tex0;
     uniform sampler2D tex1;
     uniform float alpha;
     out vec4 color;
     void main() {
-        vec4 color0 = texture(tex0, textureCoord);
-        vec4 color1 = texture(tex1, textureCoord);
-        color = mix(color0, color1, alpha);
+        color = mix(texture(tex0, textCoord), texture(tex1, textCoord), alpha);
     }
 )";
-        
 
 // static const char* kFragmentShader = R"(
 //     #version 330 core
-//     in vec2 textureCoord;
+//     in vec2 textCoord;
 //     uniform sampler2D tex0;
 //     uniform sampler2D tex1;
 //     out vec4 color;
 //     void main() {
-//         color = mix(texture(tex0, textureCoord), 
-//         texture(tex1, vec2(1 - textureCoord.x, textureCoord.y)), 0.2);
+//         color = mix(texture(tex0, textCoord),
+//         texture(tex1, vec2(1 - textCoord.x, textCoord.y)), 0.2);
 //     }
 // )";
 
-static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
-{
+static void key_callback(GLFWwindow* window, int key, int scancode, int action,
+                         int mods) {
     if (key == GLFW_KEY_DOWN && action == GLFW_PRESS) {
         alpha -= 0.1;
     } else if (key == GLFW_KEY_UP && action == GLFW_PRESS) {
@@ -59,8 +61,7 @@ static void key_callback(GLFWwindow* window, int key, int scancode, int action, 
     glUniform1f(glGetUniformLocation(shader, "alpha"), alpha);
 }
 
-static int buildShader()
-{
+static int buildShader() {
     uint32_t vs = glCreateShader(GL_VERTEX_SHADER);
     glShaderSource(vs, 1, &kVertexShader, NULL);
     glCompileShader(vs);
@@ -69,7 +70,7 @@ static int buildShader()
     if (!succ) {
         char infoLog[512] = {0};
         glGetShaderInfoLog(vs, 512, NULL, infoLog);
-        std::cerr << infoLog;
+        spdlog::critical(infoLog);
     }
     assert(succ);
 
@@ -80,8 +81,8 @@ static int buildShader()
     glGetShaderiv(fs, GL_COMPILE_STATUS, &succ);
     if (!succ) {
         char infoLog[512] = {0};
-        glGetShaderInfoLog(vs, 512, NULL, infoLog);
-        std::cerr << infoLog;
+        glGetShaderInfoLog(fs, 512, NULL, infoLog);
+        spdlog::critical(infoLog);
     }
     assert(succ);
 
@@ -93,13 +94,12 @@ static int buildShader()
     return program;
 }
 
-static void framebuffer_size_callback(GLFWwindow* window, int width, int height)
-{
+static void framebuffer_size_callback(GLFWwindow* window, int width,
+                                      int height) {
     glViewport(0, 0, width, height);
 }
 
-int texture() 
-{
+int texture() {
     glfwInit();
     glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
@@ -110,7 +110,6 @@ int texture()
     glfwMakeContextCurrent(window);
     glfwSetFramebufferSizeCallback(window, framebuffer_size_callback);
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
-    // glViewport(0, 0, 800, 600);
 
     shader = buildShader();
 
@@ -118,28 +117,26 @@ int texture()
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
     float verties[] = {
-        -.5, .5, 0, 1, 
-        .5, .5, 1, 1,
-        .5, -.5, 1, 0,
-        -.5, -.5, 0, 0,
+        -.5, .5, 0, 1, .5, .5, 1, 1, .5, -.5, 1, 0, -.5, -.5, 0, 0,
     };
 
     unsigned int indicies[] = {
-        0, 1, 2,
-        2, 3, 0,
+        0, 1, 2, 2, 3, 0,
     };
 
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
     glBufferData(GL_ARRAY_BUFFER, sizeof(verties), verties, GL_STATIC_DRAW);
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), 0);
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float), (void*)(2 * sizeof(float)));
+    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 4 * sizeof(float),
+                          (void*)(2 * sizeof(float)));
     glEnableVertexAttribArray(0);
     glEnableVertexAttribArray(1);
 
     glGenBuffers(1, &ebo);
     glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies, GL_STATIC_DRAW);
+    glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indicies), indicies,
+                 GL_STATIC_DRAW);
 
     uint32_t texture;
     {
@@ -197,7 +194,22 @@ int texture()
         glBindTexture(GL_TEXTURE_2D, texture1);
 
         glUseProgram(shader);
+        glm::mat4 trans = glm::mat4(1.0f);
+        trans = glm::translate(trans, glm::vec3(.5, -.5, .0));
+        trans = glm::rotate(trans, (float)glfwGetTime(), glm::vec3(0, 0, 1));
+        glUniformMatrix4fv(glGetUniformLocation(shader, "matrix"), 1, GL_FALSE,
+                           glm::value_ptr(trans));
+
         glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+
+        trans = glm::mat4(1.0f);
+        float scale = sin((float)glfwGetTime());
+        trans = glm::scale(trans, glm::vec3(scale, scale, 1));
+        trans = glm::translate(trans, glm::vec3(-.5, .5, .0));
+        glUniformMatrix4fv(glGetUniformLocation(shader, "matrix"), 1, GL_FALSE,
+                           glm::value_ptr(trans));
+        glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, NULL);
+        
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
