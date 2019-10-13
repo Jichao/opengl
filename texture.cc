@@ -19,7 +19,7 @@ static const char* kVertexShader = R"(
 static const char* kFragmentShader = R"(
     #version 330 core
     in vec2 textureCoord;
-    in sampler2D tex0;
+    // in sampler2D tex0;
     out vec4 color;
     void main() {
         // color = texture(tex0, textureCoord);
