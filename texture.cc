@@ -5,6 +5,9 @@
 #include "stb_image.h"
 #include <iostream>
 
+static float alpha = 0.2;
+unsigned int shader;
+
 static const char* kVertexShader = R"(
     #version 330 core
     layout (location = 0) in vec2 pos;
@@ -21,11 +24,40 @@ static const char* kFragmentShader = R"(
     in vec2 textureCoord;
     uniform sampler2D tex0;
     uniform sampler2D tex1;
+    uniform float alpha;
     out vec4 color;
     void main() {
-        color = mix(texture(tex0, textureCoord), texture(tex1, textureCoord), 0.2);
+        vec4 color0 = texture(tex0, textureCoord);
+        vec4 color1 = texture(tex1, textureCoord);
+        color = mix(color0, color1, alpha);
     }
 )";
+        
+
+// static const char* kFragmentShader = R"(
+//     #version 330 core
+//     in vec2 textureCoord;
+//     uniform sampler2D tex0;
+//     uniform sampler2D tex1;
+//     out vec4 color;
+//     void main() {
+//         color = mix(texture(tex0, textureCoord), 
+//         texture(tex1, vec2(1 - textureCoord.x, textureCoord.y)), 0.2);
+//     }
+// )";
+
+static void key_callback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (key == GLFW_KEY_DOWN && action == GLFW_PRESS) {
+        alpha -= 0.1;
+    } else if (key == GLFW_KEY_UP && action == GLFW_PRESS) {
+        alpha += 0.1;
+    }
+    alpha = std::max<float>(alpha, .0);
+    alpha = std::min<float>(alpha, 1.0);
+    glUseProgram(shader);
+    glUniform1f(glGetUniformLocation(shader, "alpha"), alpha);
+}
 
 static int buildShader()
 {
@@ -34,12 +66,23 @@ static int buildShader()
     glCompileShader(vs);
     GLint succ;
     glGetShaderiv(vs, GL_COMPILE_STATUS, &succ);
+    if (!succ) {
+        char infoLog[512] = {0};
+        glGetShaderInfoLog(vs, 512, NULL, infoLog);
+        std::cerr << infoLog;
+    }
     assert(succ);
 
+    succ = false;
     uint32_t fs = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fs, 1, &kFragmentShader, NULL);
     glCompileShader(fs);
-    glGetShaderiv(vs, GL_COMPILE_STATUS, &succ);
+    glGetShaderiv(fs, GL_COMPILE_STATUS, &succ);
+    if (!succ) {
+        char infoLog[512] = {0};
+        glGetShaderInfoLog(vs, 512, NULL, infoLog);
+        std::cerr << infoLog;
+    }
     assert(succ);
 
     uint32_t program = glCreateProgram();
@@ -69,7 +112,7 @@ int texture()
     gladLoadGLLoader((GLADloadproc)glfwGetProcAddress);
     // glViewport(0, 0, 800, 600);
 
-    uint32_t shader = buildShader();
+    shader = buildShader();
 
     uint32_t vbo, ebo, vao;
     glGenVertexArrays(1, &vao);
@@ -107,8 +150,8 @@ int texture()
 
         glGenTextures(1, &texture);
         glBindTexture(GL_TEXTURE_2D, texture);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
@@ -139,8 +182,12 @@ int texture()
     glUseProgram(shader);
     glUniform1i(glGetUniformLocation(shader, "tex0"), 0);
     glUniform1i(glGetUniformLocation(shader, "tex1"), 1);
+    glUniform1f(glGetUniformLocation(shader, "alpha"), .2);
+
+    glfwSetKeyCallback(window, key_callback);
 
     while (!glfwWindowShouldClose(window)) {
+
         glClearColor(.5, .5, .5, 1);
         glClear(GL_COLOR_BUFFER_BIT);
 
