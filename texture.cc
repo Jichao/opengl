@@ -19,11 +19,11 @@ static const char* kVertexShader = R"(
 static const char* kFragmentShader = R"(
     #version 330 core
     in vec2 textureCoord;
-    // in sampler2D tex0;
+    uniform sampler2D tex0;
     out vec4 color;
     void main() {
-        // color = texture(tex0, textureCoord);
-        color = vec4(1., 0., 0., 1.);
+        color = texture(tex0, textureCoord);
+        // color = vec4(1., 0., 0., 1.);
     }
 )";
 
@@ -102,17 +102,17 @@ int texture()
     unsigned char* data = stbi_load("container.jpg", &width, &height, &channels, 0);
     assert(data && width && height);
 
-    // uint32_t texture;
-    // glGenTextures(1, &texture);
-    // glBindTexture(GL_TEXTURE_2D, texture);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    // glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
-    //              GL_UNSIGNED_BYTE, data);
-    // glGenerateMipmap(GL_TEXTURE_2D);
-    // stbi_image_free(data);
+    uint32_t texture;
+    glGenTextures(1, &texture);
+    glBindTexture(GL_TEXTURE_2D, texture);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB,
+                 GL_UNSIGNED_BYTE, data);
+    glGenerateMipmap(GL_TEXTURE_2D);
+    stbi_image_free(data);
 
     while (!glfwWindowShouldClose(window)) {
         glClearColor(.5, .5, .5, 1);
